@@ -29,18 +29,23 @@ class Recorder():
                 cap.open(self.link)
                 continue
             
+            # capture frame...
             ret, frame = cap.read()
 
+            # resize, store into buffer
             frame_process = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
             h_process, w_process, _ = frame_process.shape
             h_full, w_full, _ = frame.shape
             frame_pos = 0 if frame_pos + 1 >= self.buffer_length else frame_pos + 1
             self.video_buffer[frame_pos] = frame
+
+            # apply filter to get foreground
             fgmask = fgbg.apply(frame_process)
 
+            # find contours...for debugging purposes
             contours, hierarchy = cv2.findContours(fgmask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
-                if cv2.contourArea(contour) < 500:
+                if cv2.contourArea(contour) < 500:  # filter contours that are too small
                     continue
 
                 x, y, w, h = cv2.boundingRect(contour)
@@ -52,6 +57,7 @@ class Recorder():
             if in_record > 0:
                 in_record += 1
         
+                # finish writing to file
                 if in_record >= self.buffer_length:
                     in_record = 0
                     out.release()
@@ -59,6 +65,8 @@ class Recorder():
                     blob.upload_from_filename(video_name)
 
             cnt = np.count_nonzero(fgmask)
+
+            # threshold...filters out images with too much noise
             if cnt * 20 > h_process * w_process:
                 if in_record == 0:
                     in_record = 1
@@ -67,11 +75,11 @@ class Recorder():
 
                     readable = datetime.datetime.fromtimestamp(ts).isoformat()
                     print('writing to new file: {}'.format(readable))
-                    video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)
+                    video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                     out = cv2.VideoWriter(video_name, self.fourcc, 15.0, (w_full, h_full))
 
             if in_record > 0:
-                out.write(frame)
+                out.write(frame)  # write frame
                 
         cap.release()
         cv2.destroyAllWindows()
