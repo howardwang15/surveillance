@@ -1,0 +1,19 @@
+version: '3.2'
+services: 
+    recorder:
+        build: .
+        depends_on:
+            - mysql
+        restart: always
+        volumes: 
+            - ./:/app/
+    mysql:
+        build:
+            context: .
+            dockerfile: mysql.Dockerfile
+        env_file: .env
+        restart: always
+        ports: 
+            - "3306"
+
+
