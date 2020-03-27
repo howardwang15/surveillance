@@ -15,5 +15,7 @@ services:
         restart: always
         ports: 
             - "3306"
+        volumes:
+            - ./mysql_data:/app/mysql_data
 
 
