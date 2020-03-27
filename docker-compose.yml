@@ -1,16 +1,20 @@
 version: '3.2'
 services: 
     recorder:
-        build: .
+        build: ./recorder
         depends_on:
             - mysql
         restart: always
         volumes: 
             - ./:/app/
+    server:
+        build: ./server
+        depends_on: 
+            - mysql
+        restart: always
+        
     mysql:
-        build:
-            context: .
-            dockerfile: mysql.Dockerfile
+        image: mysql:latest
         env_file: .env
         restart: always
         ports: 
