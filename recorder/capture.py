@@ -5,6 +5,7 @@ import cv2
 import os
 import argparse
 import tensorflow as tf
+import mysql.connector
 from models import YoloV3Tiny, YoloV3
 from dotenv import load_dotenv
 from google.cloud import storage
@@ -43,8 +44,10 @@ class Recorder():
         self.video_buffer = [None] * self.buffer_length
         self.storage_client = storage.Client()
         self.bucket = self.storage_client.bucket(os.getenv('BUCKET'))
-        self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3Tiny(classes=80)
+        self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3(classes=80)
         self.yolo_model.load_weights(weights)
+        self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
+        self.cursor = self.cnx.cursor()
     
     def capture(self):
         print('Initializing...')
@@ -53,12 +56,13 @@ class Recorder():
         frame_pos = 0
         in_record = 0
         video_name = ''
-        if not os.path.exists('files'):
-            os.makedirs('files')
+        if not os.path.exists(os.path.join('..', 'files')):
+            os.makedirs(os.path.join('..', 'files'))
 
         class_names = [c.strip() for c in open('coco.names').readlines()]
 
         while True:
+            print(in_record)
             if not cap.isOpened():
                 cap.open(self.link)
                 continue
@@ -103,13 +107,12 @@ class Recorder():
 
             cnt = np.count_nonzero(fgmask)
             # threshold...filters out images with too much noise
-            if cnt * 200 > h_process * w_process:
+            if cnt * 20 > h_process * w_process:
                 tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                 boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
                 
-
                 # see if person (class 0) is in predictions
-                if in_record == 0 and 0 in classes[0][:nums[0]]:
+                if in_record == 0 and np.any(np.in1d([0, 2, 16, 17, 18, 19, 20], classes[0][:nums[0]])):
                     in_record = 1
                     start_pos = frame_pos - 30
                     ts = datetime.datetime.now().timestamp()
@@ -118,10 +121,18 @@ class Recorder():
                     print('writing to new file: {}'.format(readable))
                     video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                     frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
-                    out = cv2.VideoWriter(os.path.join('files', video_name), self.fourcc, 15.0, (w_full, h_full))
+
+                    now = datetime.datetime.now().isoformat()
+                    insert_query = '''INSERT INTO videos (start_time, video_name, first_frame) values ('{}', '{}', '{}')'''.format(now, video_name, frame_name)
+
+                    self.cursor.execute(insert_query)
+                    self.cnx.commit()
+                    print(self.cursor.lastrowid)
+
+                    out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
                     frame = draw_outputs(frame, (boxes, scores, classes, nums), class_names)
                     
-                    cv2.imwrite(os.path.join('files', frame_name), frame)
+                    cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
 
             if in_record > 0:
                 out.write(frame)  # write frame
@@ -134,5 +145,5 @@ class Recorder():
 if __name__ == '__main__':
     load_dotenv()
     options = get_options()
-    recorder = Recorder(weights=options.weights, tiny=True)
+    recorder = Recorder(weights=options.weights, tiny=False)
     recorder.capture()
