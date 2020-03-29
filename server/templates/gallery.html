@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surveillance Dashboard</title>
+
+    <!-- <link href="https://code.jquery.com/ui/1.10.4/themes/ui-lightness/jquery-ui.css" rel="stylesheet"> -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/jquery.datetimepicker.min.css" rel="stylesheet">
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="js/jquery.datetimepicker.full.min.js"></script> 
+
+    
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class='col-sm-4'>
+                <h2>Select a date and time</h2>
+                <div class='input-group date mt-5'>
+                    <input type='text' class="form-control" id='picker' placeholder='Choose a time' />
+                    <span class="input-group-addon">
+                        <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                </div>
+            </div>
+            <div class='col-sm-4 col-sm-offset-4'>
+                <div class="d-flex flex-column">
+                    <h2>Filter by object detected</h2>
+                    <div class='p-2'>
+                        <input type="checkbox" class="form-check-input" id="person">
+                        <label class="form-check-label" for="person">Person</label>
+                    </div>
+                    <div class='p-2'>
+                        <input type="checkbox" class="form-check-input" id="animal">
+                        <label class="form-check-label" for="animal">Animal</label>
+                    </div>
+                </div>
+            </div>
+            <button type='button' class='btn btn-secondary col-sm-2 col-sm-offset-5' onclick="submitQuery()">Find footage</button>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        $(function () {
+            $('#picker').datetimepicker();
+        });
+
+        function submitQuery() {
+            text = document.getElementById('picker').value;
+            console.log(text);
+        }
+    </script>
+
+</body>
+</html>
