@@ -9,4 +9,4 @@ COPY . /app/server
 
 RUN ls -la
 
-CMD [ "flask", "run" ]
+CMD [ "flask", "run", "--host=0.0.0.0" ]
