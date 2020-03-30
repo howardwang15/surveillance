@@ -38,7 +38,7 @@
                         </div>
 
                         <div class='p-2'>
-                            <input type="checkbox" class="form-check-input" id="animal" name='person'>
+                            <input type="checkbox" class="form-check-input" id="animal" name='animal'>
                             <label class="form-check-label" for="animal">Animal</label>
                         </div>
                     </div>
@@ -48,6 +48,26 @@
         </div>
     </div>
 
+    <br />
+
+    {% if not data %}
+        <h2 class="text-center">No footage found!</h2>
+    {% else %}
+        <div class="container">
+            {% for item in data %}
+                <div class="col-sm-6 d-flex flex-column">
+                    <h3 class="p-2 text-center">
+                        {{item[0]}}
+                    </h3>
+                    <div class="p-2">
+                        <img src="{{item[1]}}" width="400px"/>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+    {% endif %}
+    
 
     <script type="text/javascript">
         $(function () {

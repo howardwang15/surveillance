@@ -1,3 +1,7 @@
 venv/
+files/
+mysql_data/
 *.json
 *.mp4
+*.png
+*.jpg
