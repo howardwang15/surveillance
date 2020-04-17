@@ -27,16 +27,18 @@ class EmailService():
         msg['From'] = self.source
         msg['To'] = self.dest
 
-        with open(os.path.join('..', image_path), 'rb') as f:
+        with open(os.path.join(image_path), 'rb') as f:
             image_data = f.read()
         
+        image_path = image_path.split('/')[-1]
         image = MIMEImage(image_data, name=image_path)
         msg.attach(image)
 
 
-        with open(os.path.join('..', video_path), 'rb') as f:
+        with open(os.path.join(video_path), 'rb') as f:
             video_data = f.read()
 
+        video_path = video_path.split('/')[-1]
         video = MIMEApplication(video_data, name=video_path)
         msg.attach(video)
 

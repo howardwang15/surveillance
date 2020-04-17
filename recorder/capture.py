@@ -49,7 +49,7 @@ class Recorder():
         self.yolo_model.load_weights(weights)
         self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
         self.cursor = self.cnx.cursor()
-        self.email_service = EmailService(os.getenv('EMAIL_SOURCE'), os.getenv('EMAIL_DEST'), base64.b64decode(os.getenv('EMAIL_PASS')))
+        self.email_service = EmailService(os.getenv('EMAIL_SOURCE'), os.getenv('EMAIL_DEST'), base64.b64decode(os.getenv('EMAIL_PASS')).decode())
     
     def capture(self):
         print('Initializing...')
