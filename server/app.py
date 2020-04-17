@@ -47,12 +47,11 @@ def fetch_videos():
     cursor.execute(fetch_videos)
     rows = cursor.fetchall()
 
-    images = [os.path.join('/static', 'files', first_frame) for start_time, video_name, first_frame in rows]
-
-    times = [start_time for start_time, video_name, _ in rows]
-
-    data = [(time, image) for time, image in zip(times, images)]
-    print(data)
+    times = [start_time for start_time, _, _ in rows]
+    images = [os.path.join('/static', 'files', first_frame) for _, _, first_frame in rows]
+    videos = [os.path.join('/static', 'files', video_name) for _, video_name, _ in rows]
+    print(videos)
+    data = [(time, image, video) for time, image, video in zip(times, images, videos)]
 
     return render_template('gallery.html', data=data)
 

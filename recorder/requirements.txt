@@ -3,3 +3,4 @@ tensorflow
 python-dotenv
 google-cloud-storage
 mysql-connector-python
+python-dateutil

@@ -9,4 +9,5 @@ COPY . /app/recorder
 
 RUN ls -la
 
+
 CMD [ "python", "-u", "capture.py", "--weights=weights/yolov3.tf" ]

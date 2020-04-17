@@ -54,18 +54,25 @@
         <h2 class="text-center">No footage found!</h2>
     {% else %}
         <div class="container">
-            {% for item in data %}
+            {% for time, image, video in data %}
                 <div class="col-sm-6 d-flex flex-column">
                     <h3 class="p-2 text-center">
-                        {{item[0]}}
+                        {{video}}
                     </h3>
                     <div class="p-2">
-                        <img src="{{item[1]}}" width="400px"/>
+                        <img src="/static/files/images_front_door_2020-03-29T18:13:03.068396.png" width="400px" />
+                        <!-- <img src="{{image}}" width="400px"/> -->
+                    </div>
+                    <div class="p-2">
+                        <video width="320" height="320" controls>
+                            <source src="/static/files/colorado.mp4" type="video/mp4">
+
+                            <!-- <source src="{{ url_for('static', filename='files/videos_front_door_2020-03-29T18:57:53.678792.mp4') }}" type="video/mp4; codecs='avc1.42E01E', mp4a.40.2"> -->
+                        </video>
                     </div>
                 </div>
             {% endfor %}
         </div>
-
     {% endif %}
     
 
@@ -82,3 +89,4 @@
 
 </body>
 </html>
+
