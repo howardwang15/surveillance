@@ -27,11 +27,17 @@ class EmailService():
         msg['From'] = self.source
         msg['To'] = self.dest
 
+
+        alternative = MIMEMultipart('alternative')
+        alternative.attach(MIMEText('<img src="cid:image1" width=50%>', 'html'))
+        msg.attach(alternative)
+
         with open(os.path.join(image_path), 'rb') as f:
             image_data = f.read()
         
         image_path = image_path.split('/')[-1]
         image = MIMEImage(image_data, name=image_path)
+        image.add_header('Content-ID', '<image1>')
         msg.attach(image)
 
 
@@ -45,5 +51,3 @@ class EmailService():
         # login to SMTP server and send email message   
         self.smtp_server.login(self.source, self.password)
         self.smtp_server.send_message(msg)
-
-

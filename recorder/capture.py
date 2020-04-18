@@ -124,7 +124,7 @@ class Recorder():
                     boxes = boxes[0][:nums[0]][filter_indices]
                     scores = scores[0][:nums[0]][filter_indices]
 
-                    if np.any(np.in1d([0, 2, 16, 17, 18, 19, 20], classes)):
+                    if np.any(np.in1d([0, 16, 17, 18, 19, 20], classes)):
                         in_record = 1
                         start_pos = frame_pos - 30
                         ts = datetime.datetime.now().timestamp()
