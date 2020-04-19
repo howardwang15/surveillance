@@ -2,11 +2,13 @@ build:
 	docker-compose build
 
 run: build
-	docker-compose up
+	docker-compose up -d
 
 stop:
 	docker-compose down
 
+logs:
+	docker-compose logs --tail=0 --follow
 
 prune:
 	docker image prune

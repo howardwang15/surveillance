@@ -61,7 +61,9 @@ class Recorder():
         if not os.path.exists(os.path.join('..', 'files')):
             os.makedirs(os.path.join('..', 'files'))
 
+        # get the coco class names and the classes we're interested in
         class_names = [c.strip() for c in open('coco.names').readlines()]
+        targets = [0, 16, 17, 18, 19, 20]
 
         while True:
             print(in_record)
@@ -118,13 +120,13 @@ class Recorder():
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
                     # filter the detections that are people
-                    filter_indices = np.nonzero(np.isin(classes[0][:nums[0]], [0, 2]))
+                    filter_indices = np.nonzero(np.isin(classes[0][:nums[0]], targets))
                     num_out = filter_indices[0].shape[0]
                     classes = classes[0][:nums[0]][filter_indices]
                     boxes = boxes[0][:nums[0]][filter_indices]
                     scores = scores[0][:nums[0]][filter_indices]
 
-                    if np.any(np.in1d([0, 16, 17, 18, 19, 20], classes)):
+                    if np.any(np.in1d(targets, classes)):
                         in_record = 1
                         start_pos = frame_pos - 30
                         ts = datetime.datetime.now().timestamp()
