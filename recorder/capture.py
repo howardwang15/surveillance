@@ -7,6 +7,7 @@ import argparse
 import tensorflow as tf
 import mysql.connector
 import base64
+import json
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
 from dotenv import load_dotenv
@@ -43,14 +44,12 @@ class Recorder():
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.buffer_length = buffer_length
         self.video_buffer = [None] * self.buffer_length
-        self.storage_client = storage.Client()
-        self.bucket = self.storage_client.bucket(os.getenv('BUCKET'))
         self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3(classes=80)
         self.yolo_model.load_weights(weights)
         self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
         self.cursor = self.cnx.cursor()
-        self.email_service = EmailService(os.getenv('EMAIL_SOURCE'), os.getenv('EMAIL_DEST'), base64.b64decode(os.getenv('EMAIL_PASS')).decode())
-    
+        self.email_service = EmailService(os.getenv('EMAIL_SOURCE'), ', '.join(json.loads(os.getenv('EMAIL_DEST'))), base64.b64decode(os.getenv('EMAIL_PASS')).decode())
+
     def capture(self):
         print('Initializing...')
         cap = cv2.VideoCapture(self.link)
@@ -66,7 +65,6 @@ class Recorder():
         targets = [0, 16, 17, 18, 19, 20]
 
         while True:
-            print(in_record)
             if not cap.isOpened():
                 cap.open(self.link)
                 continue
@@ -107,15 +105,14 @@ class Recorder():
                 if in_record >= self.buffer_length:
                     in_record = 0
                     out.release()
-                    blob = self.bucket.blob(video_name)
                     self.email_service.send_email(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)
-                    # blob.upload_from_filename(os.path.join('files', video_name))  
 
             cnt = np.count_nonzero(fgmask)
             # threshold...filters out images with too much noise
-            if cnt * 20 > h_process * w_process:
+            if cnt * 25 > h_process * w_process:
                 # see if person (class 0) is in predictions
                 if in_record == 0:
+                    print('motion detected')
                     tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
@@ -155,7 +152,7 @@ class Recorder():
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
 
             if in_record > 0:
-                out.write(frame_process)  # write frame
+                out.write(self.video_buffer[frame_pos - 30])  # write frame
                 
         cap.release()
         cv2.destroyAllWindows()
