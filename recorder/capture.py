@@ -13,7 +13,6 @@ import sys
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
 from dotenv import load_dotenv
-from google.cloud import storage
 
 
 def get_options():
@@ -68,7 +67,7 @@ class Recorder():
             os.makedirs(os.path.join('..', 'files'))
 
         # get the coco class names and the classes we're interested in
-        class_names = [c.strip() for c in open('coco.names').readlines()]
+        class_names = np.array([c.strip() for c in open('coco.names').readlines()])
         targets = [0, 16, 17, 18, 19, 20]
         startup = True
 
@@ -81,10 +80,10 @@ class Recorder():
             ret, frame = cap.read()
 
             if frame is None or frame.size == 0:
+                cap = cv2.VideoCapture(self.link)
                 continue
 
             # resize, store into buffer
-            frame_resize = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
             frame_process = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
             h_process, w_process, _ = frame_process.shape
             h_full, w_full, _ = frame.shape
@@ -93,23 +92,13 @@ class Recorder():
             
             # hack for making sure service doesn't crash if there's motion right when it starts up
             if startup:
-                self.video_buffer = [frmae for _ in range(self.buffer_length)]
+                self.video_buffer = [frame for _ in range(self.buffer_length)]
                 startup = False
 
             # apply filter to get foreground
             fgmask = fgbg.apply(frame_process)
 
             # find contours...for debugging purposes
-            contours, hierarchy = cv2.findContours(fgmask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for contour in contours:
-                if cv2.contourArea(contour) < 500:  # filter contours that are too small
-                    continue
-
-                x, y, w, h = cv2.boundingRect(contour)
-                x *= 4
-                y *= 4
-                w *= 4
-                h *= 4
             
             if in_record > 0:
                 in_record += 1
@@ -139,11 +128,15 @@ class Recorder():
                     filter_scores = np.nonzero(scores[0][:nums[0]] > 0.56)
                     filter_indices = np.intersect1d(filter_classes, filter_scores)
                     num_out = filter_indices.size
-                    classes = classes[0][:nums[0]][filter_indices]
-                    boxes = boxes[0][:nums[0]][filter_indices]
-                    scores = scores[0][:nums[0]][filter_indices]
+                    detected_classes = classes[0][:nums[0]][filter_indices]
+                    detected_classes = detected_classes.astype('int')
+                    detected_boxes = boxes[0][:nums[0]][filter_indices]
+                    detected_scores = scores[0][:nums[0]][filter_indices]
+                    classes = classes[0][:nums[0]]
+                    classes = classes.astype('int')
 
-                    if np.any(np.in1d(targets, classes)):
+                    if num_out > 0:
+                        logging.debug('Detected objects of interest: {}'.format(class_names[detected_classes]))
                         in_record = 1
                         start_pos = frame_pos - 30
                         ts = datetime.datetime.now().timestamp()
@@ -161,17 +154,22 @@ class Recorder():
                         self.cnx.commit()
                         video_id = self.cursor.lastrowid
 
-                        for _class in classes:
+                        for _class in detected_classes:
                             class_name = class_names[int(_class)]
                             insert_object_query = "INSERT INTO detections (video_id, type) values ('{}', '{}')".format(video_id, class_name)
                             self.cursor.execute(insert_object_query)
                             self.cnx.commit()
 
                         out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
-                        frame = draw_outputs(frame, (boxes, scores, classes, num_out), class_names)
+                        frame = draw_outputs(frame,
+                            (detected_boxes, detected_scores, detected_classes, num_out),
+                            class_names
+                        )
 
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
                         cv2.imwrite(os.path.join('..', 'files', mask_name), fgmask)
+                    else:
+                        logging.debug('found objects not interested in: {}'.format(class_names[classes]))
 
             if in_record > 0:
                 out.write(self.video_buffer[frame_pos - 30])  # write frame
