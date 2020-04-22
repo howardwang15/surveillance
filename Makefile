@@ -10,6 +10,9 @@ stop:
 logs:
 	docker-compose logs --tail=0 --follow
 
+write-logs:
+	docker-compose logs --no-color > logfile.log
+
 prune:
 	docker image prune
 

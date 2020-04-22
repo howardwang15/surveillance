@@ -8,6 +8,8 @@ import tensorflow as tf
 import mysql.connector
 import base64
 import json
+import logging
+import sys
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
 from dotenv import load_dotenv
@@ -48,10 +50,15 @@ class Recorder():
         self.yolo_model.load_weights(weights)
         self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
         self.cursor = self.cnx.cursor()
-        self.email_service = EmailService(os.getenv('EMAIL_SOURCE'), ', '.join(json.loads(os.getenv('EMAIL_DEST'))), base64.b64decode(os.getenv('EMAIL_PASS')).decode())
+        logging.basicConfig(
+            stream=sys.stdout,
+            format='%(asctime)s %(message)s',
+            level=logging.INFO,
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
 
     def capture(self):
-        print('Initializing...')
+        logging.info('Initializing...')
         cap = cv2.VideoCapture(self.link)
         fgbg = cv2.createBackgroundSubtractorMOG2()
         frame_pos = 0
@@ -63,6 +70,7 @@ class Recorder():
         # get the coco class names and the classes we're interested in
         class_names = [c.strip() for c in open('coco.names').readlines()]
         targets = [0, 16, 17, 18, 19, 20]
+        startup = True
 
         while True:
             if not cap.isOpened():
@@ -81,7 +89,12 @@ class Recorder():
             h_process, w_process, _ = frame_process.shape
             h_full, w_full, _ = frame_resize.shape
             frame_pos = 0 if frame_pos + 1 >= self.buffer_length else frame_pos + 1
-            self.video_buffer[frame_pos] = frame
+            self.video_buffer[frame_pos] = frame_process
+            
+            # hack for making sure service doesn't crash if there's motion right when it starts up
+            if startup:
+                self.video_buffer = [frame_process for _ in range(self.buffer_length)]
+                startup = False
 
             # apply filter to get foreground
             fgmask = fgbg.apply(frame_process)
@@ -105,6 +118,11 @@ class Recorder():
                 if in_record >= self.buffer_length:
                     in_record = 0
                     out.release()
+                    self.email_service = EmailService(
+                        os.getenv('EMAIL_SOURCE'),
+                        ', '.join(json.loads(os.getenv('EMAIL_DEST'))),
+                        base64.b64decode(os.getenv('EMAIL_PASS')).decode()
+                    )
                     self.email_service.send_email(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)
 
             cnt = np.count_nonzero(fgmask)
@@ -112,7 +130,7 @@ class Recorder():
             if cnt * 25 > h_process * w_process:
                 # see if person (class 0) is in predictions
                 if in_record == 0:
-                    print('motion detected')
+                    logging.info('motion detected')
                     tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
@@ -129,9 +147,10 @@ class Recorder():
                         ts = datetime.datetime.now().timestamp()
 
                         readable = datetime.datetime.fromtimestamp(ts).isoformat()
-                        print('writing to new file: {}'.format(readable))
+                        logging.info('writing to new file: {}'.format(readable))
                         video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
+                        mask_name = 'mask_{}_{}.png'.format(self.camera_id, readable)
 
                         now = datetime.datetime.now().isoformat()
                         insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame) values ('{}', '{}', '{}')".format(now, video_name, frame_name)
@@ -150,6 +169,7 @@ class Recorder():
                         frame = draw_outputs(frame, (boxes, scores, classes, num_out), class_names)
 
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
+                        cv2.imwrite(os.path.join('..', 'files', mask_name), fgmask)
 
             if in_record > 0:
                 out.write(self.video_buffer[frame_pos - 30])  # write frame
