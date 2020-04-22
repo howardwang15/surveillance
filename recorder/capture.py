@@ -47,8 +47,7 @@ class Recorder():
         self.video_buffer = [None] * self.buffer_length
         self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3(classes=80)
         self.yolo_model.load_weights(weights)
-        self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
-        self.cursor = self.cnx.cursor()
+
         logging.basicConfig(
             stream=sys.stdout,
             format='%(asctime)s %(message)s',
@@ -149,7 +148,8 @@ class Recorder():
 
                         now = datetime.datetime.now().isoformat()
                         insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame) values ('{}', '{}', '{}')".format(now, video_name, frame_name)
-
+                        self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
+                        self.cursor = self.cnx.cursor()
                         self.cursor.execute(insert_video_query)
                         self.cnx.commit()
                         video_id = self.cursor.lastrowid
