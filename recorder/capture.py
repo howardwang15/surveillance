@@ -87,13 +87,13 @@ class Recorder():
             frame_resize = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
             frame_process = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
             h_process, w_process, _ = frame_process.shape
-            h_full, w_full, _ = frame_resize.shape
+            h_full, w_full, _ = frame.shape
             frame_pos = 0 if frame_pos + 1 >= self.buffer_length else frame_pos + 1
-            self.video_buffer[frame_pos] = frame_process
+            self.video_buffer[frame_pos] = frame
             
             # hack for making sure service doesn't crash if there's motion right when it starts up
             if startup:
-                self.video_buffer = [frame_process for _ in range(self.buffer_length)]
+                self.video_buffer = [frmae for _ in range(self.buffer_length)]
                 startup = False
 
             # apply filter to get foreground
@@ -134,9 +134,11 @@ class Recorder():
                     tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
-                    # filter the detections that are people
-                    filter_indices = np.nonzero(np.isin(classes[0][:nums[0]], targets))
-                    num_out = filter_indices[0].shape[0]
+                    # filter the detections that are people and with confidence level > 0.56
+                    filter_classes = np.nonzero(np.isin(classes[0][:nums[0]], targets))
+                    filter_scores = np.nonzero(scores[0][:nums[0]] > 0.56)
+                    filter_indices = np.intersect1d(filter_classes, filter_scores)
+                    num_out = filter_indices.size
                     classes = classes[0][:nums[0]][filter_indices]
                     boxes = boxes[0][:nums[0]][filter_indices]
                     scores = scores[0][:nums[0]][filter_indices]
@@ -165,7 +167,7 @@ class Recorder():
                             self.cursor.execute(insert_object_query)
                             self.cnx.commit()
 
-                        out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_process, h_process))
+                        out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
                         frame = draw_outputs(frame, (boxes, scores, classes, num_out), class_names)
 
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
