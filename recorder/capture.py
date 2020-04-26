@@ -72,14 +72,17 @@ class Recorder():
 
         while True:
             if not cap.isOpened():
-                cap.open(self.link)
+                # cap.open(self.link)
                 continue
 
             # capture frame...
             ret, frame = cap.read()
 
-            if frame is None or frame.size == 0:
-                cap = cv2.VideoCapture(self.link)
+            if not ret:
+                logging.info('Couldn\'t get frame')
+                logging.info('cap is opened: {}'.format(cap.isOpened()))
+                cap.release()
+                cap.open(self.link)
                 continue
 
             # resize, store into buffer
