@@ -47,17 +47,19 @@ class Recorder():
         self.video_buffer = [None] * self.buffer_length
         self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3(classes=80)
         self.yolo_model.load_weights(weights)
+        self.cap = cv2.VideoCapture(self.link)
 
         logging.basicConfig(
-            stream=sys.stdout,
+            filename='capture.log',
             format='%(asctime)s %(message)s',
             level=logging.INFO,
             datefmt='%Y-%m-%d %H:%M:%S'
         )
 
+        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
     def capture(self):
         logging.info('Initializing...')
-        cap = cv2.VideoCapture(self.link)
         fgbg = cv2.createBackgroundSubtractorMOG2()
         frame_pos = 0
         in_record = 0
@@ -71,18 +73,21 @@ class Recorder():
         startup = True
 
         while True:
-            if not cap.isOpened():
-                # cap.open(self.link)
+            if not self.cap.isOpened():
+                self.cap = cv2.VideoCapture(self.link)
+                logging.info('opening cap again')
                 continue
 
             # capture frame...
-            ret, frame = cap.read()
+            ret, frame = self.cap.read()
 
-            if not ret:
+            #self.cap = cv2.VideoCapture(self.link)
+            if frame is None:
                 logging.info('Couldn\'t get frame')
-                logging.info('cap is opened: {}'.format(cap.isOpened()))
-                cap.release()
-                cap.open(self.link)
+                logging.info('cap is opened: {}'.format(self.cap.isOpened()))
+                # os.execl()
+                self.cap.release()
+                self.cap = cv2.VideoCapture(self.link)
                 continue
 
             # resize, store into buffer
@@ -147,7 +152,6 @@ class Recorder():
                         logging.info('writing to new file: {}'.format(readable))
                         video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
-                        mask_name = 'mask_{}_{}.png'.format(self.camera_id, readable)
 
                         now = datetime.datetime.now().isoformat()
                         insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame) values ('{}', '{}', '{}')".format(now, video_name, frame_name)
@@ -170,14 +174,13 @@ class Recorder():
                         )
 
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
-                        cv2.imwrite(os.path.join('..', 'files', mask_name), fgmask)
                     else:
                         logging.debug('found objects not interested in: {}'.format(class_names[classes]))
 
             if in_record > 0:
                 out.write(self.video_buffer[frame_pos - 30])  # write frame
                 
-        cap.release()
+        self.cap.release()
         cv2.destroyAllWindows()
 
 

@@ -19,5 +19,7 @@ prune:
 mysql:
 	docker exec -it $$(sudo docker ps | grep "mysql" | cut -d' ' -f1) mysql -uroot -p
 
+restart: stop run
+
 server:
 	docker exec -it $$(sudo docker ps | grep "server" | cut -d' ' -f1) bash
