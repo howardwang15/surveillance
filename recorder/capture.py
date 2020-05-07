@@ -13,6 +13,7 @@ import sys
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
 from dotenv import load_dotenv
+from multiprocessing import Process
 
 
 def get_options():
@@ -56,7 +57,9 @@ class Recorder():
             datefmt='%Y-%m-%d %H:%M:%S'
         )
 
-        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+        stdout_logger = logging.StreamHandler(stream=sys.stdout)
+        stdout_logger.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+        logging.getLogger().addHandler(stdout_logger)
 
     def capture(self):
         logging.info('Initializing...')
@@ -71,6 +74,7 @@ class Recorder():
         class_names = np.array([c.strip() for c in open('coco.names').readlines()])
         targets = [0, 16, 17, 18, 19, 20]
         startup = True
+        c = 0
 
         while True:
             if not self.cap.isOpened():
@@ -81,14 +85,18 @@ class Recorder():
             # capture frame...
             ret, frame = self.cap.read()
 
-            #self.cap = cv2.VideoCapture(self.link)
-            if frame is None:
+            if not ret:
                 logging.info('Couldn\'t get frame')
                 logging.info('cap is opened: {}'.format(self.cap.isOpened()))
                 # os.execl()
                 self.cap.release()
                 self.cap = cv2.VideoCapture(self.link)
                 continue
+
+            c += 1
+            if c % 1000 == 0:
+                logging.info(c)
+
 
             # resize, store into buffer
             frame_process = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -119,7 +127,10 @@ class Recorder():
                         ', '.join(json.loads(os.getenv('EMAIL_DEST'))),
                         base64.b64decode(os.getenv('EMAIL_PASS')).decode()
                     )
-                    self.email_service.send_email(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)
+                    Process(
+                        target=self.email_service.send_email,
+                        args=(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)
+                    ).start()
 
             cnt = np.count_nonzero(fgmask)
             # threshold...filters out images with too much noise
