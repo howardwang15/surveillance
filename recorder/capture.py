@@ -10,6 +10,7 @@ import base64
 import json
 import logging
 import sys
+from logger import Logger
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
 from dotenv import load_dotenv
@@ -49,20 +50,16 @@ class Recorder():
         self.yolo_model = YoloV3Tiny(classes=80) if tiny else YoloV3(classes=80)
         self.yolo_model.load_weights(weights)
         self.cap = cv2.VideoCapture(self.link)
-
-        logging.basicConfig(
-            filename='capture.log',
-            format='%(asctime)s %(message)s',
-            level=logging.INFO,
-            datefmt='%Y-%m-%d %H:%M:%S'
+        self.logger = Logger(
+            name='recorder logger',
+            log_path='capture.log',
+            default_level=logging.DEBUG,
+            max_size=1024*1024*1,
+            num_files=5
         )
 
-        stdout_logger = logging.StreamHandler(stream=sys.stdout)
-        stdout_logger.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
-        logging.getLogger().addHandler(stdout_logger)
-
     def capture(self):
-        logging.info('Initializing...')
+        self.logger.write(logging.INFO, 'Initializing...')
         fgbg = cv2.createBackgroundSubtractorMOG2()
         frame_pos = 0
         in_record = 0
@@ -79,23 +76,22 @@ class Recorder():
         while True:
             if not self.cap.isOpened():
                 self.cap = cv2.VideoCapture(self.link)
-                logging.info('opening cap again')
+                self.logger.write(logging.INFO, 'opening cap again')
                 continue
 
             # capture frame...
             ret, frame = self.cap.read()
 
             if not ret:
-                logging.info('Couldn\'t get frame')
-                logging.info('cap is opened: {}'.format(self.cap.isOpened()))
-                # os.execl()
+                self.logger.write(logging.ERROR, 'Couldn\'t get frame')
+                self.logger.write(logging.INFO, 'cap is opened: {}'.format(self.cap.isOpened()))
                 self.cap.release()
                 self.cap = cv2.VideoCapture(self.link)
                 continue
 
             c += 1
             if c % 1000 == 0:
-                logging.info(c)
+                self.logger.write(logging.DEBUG, c)
 
 
             # resize, store into buffer
@@ -137,7 +133,7 @@ class Recorder():
             if cnt * 25 > h_process * w_process:
                 # see if person (class 0) is in predictions
                 if in_record == 0:
-                    logging.info('motion detected')
+                    self.logger.write(logging.INFO, 'motion detected')
                     tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
@@ -154,13 +150,13 @@ class Recorder():
                     classes = classes.astype('int')
 
                     if num_out > 0:
-                        logging.debug('Detected objects of interest: {}'.format(class_names[detected_classes]))
+                        self.logger.write(logging.INFO, 'Detected objects of interest: {}'.format(class_names[detected_classes]))
                         in_record = 1
                         start_pos = frame_pos - 30
                         ts = datetime.datetime.now().timestamp()
 
                         readable = datetime.datetime.fromtimestamp(ts).isoformat()
-                        logging.info('writing to new file: {}'.format(readable))
+                        self.logger.write(logging.INFO, 'writing to new file: {}'.format(readable))
                         video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
 
@@ -186,7 +182,7 @@ class Recorder():
 
                         cv2.imwrite(os.path.join('..', 'files', frame_name), frame)
                     else:
-                        logging.debug('found objects not interested in: {}'.format(class_names[classes]))
+                        self.logger.write(logging.INFO, 'found objects not interested in: {}'.format(class_names[classes]))
 
             if in_record > 0:
                 out.write(self.video_buffer[frame_pos - 30])  # write frame
