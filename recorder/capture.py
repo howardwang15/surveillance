@@ -67,7 +67,7 @@ class Recorder():
             name='recorder logger',
             log_path='capture.log',
             default_level=logging.DEBUG,
-            max_size=1024*1024*1,
+            max_size=1024*1024*3,
             num_files=5
         )
 
@@ -109,7 +109,7 @@ class Recorder():
 
 
             # resize, store into buffer
-            frame_process = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+            frame_process = cv2.resize(frame, (0, 0), fx=0.75, fy=0.75)
             h_process, w_process, _ = frame_process.shape
             h_full, w_full, _ = frame.shape
             frame_pos = 0 if frame_pos + 1 >= self.buffer_length else frame_pos + 1

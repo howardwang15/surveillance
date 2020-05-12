@@ -29,7 +29,7 @@ class EmailService():
 
 
         alternative = MIMEMultipart('alternative')
-        alternative.attach(MIMEText('<img src="cid:image1" width=50%>', 'html'))
+        alternative.attach(MIMEText('<img src="cid:image1" width=75%>', 'html'))
         msg.attach(alternative)
 
         with open(os.path.join(image_path), 'rb') as f:
