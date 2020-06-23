@@ -52,6 +52,39 @@ def draw_outputs(img, outputs, class_names):
             x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
     return img
 
+def filter_detections(nums, classes, scores, boxes, targets):
+    classes = classes[0][:nums[0]]
+    scores = scores[0][:nums[0]]
+    boxes = boxes[0][:nums[0]]
+    filter_classes = np.nonzero(np.isin(classes, targets))
+    filter_scores = np.nonzero(scores > 0.56)
+    filter_indices = np.intersect1d(filter_classes, filter_scores)
+
+    num_out = filter_indices.size
+    detected_classes = classes[filter_indices]
+    detected_classes = detected_classes.astype('int')
+    detected_boxes = boxes[filter_indices]
+    detected_scores = scores[filter_indices]
+    classes = classes.astype('int')  # convert classes to ints
+
+    def filter_boxes(class_id, box):
+        if class_id != 0:
+            return True
+        x1y1 = tuple((np.array(box[0:2])))
+        x2y2 = tuple((np.array(box[2:4])))
+        width = abs(x1y1[0]-x2y2[0])
+        height = abs(x1y1[1]-x2y2[1])
+        hw_ratio = height/width
+        return height > 0.12 and hw_ratio > 2.3
+
+    res = np.array(list(map(filter_boxes, detected_classes, detected_boxes))).astype('bool')
+    filter_indices = filter_indices[res]
+    num_out = filter_indices.size
+    detected_classes = classes[filter_indices]
+    detected_boxes = boxes[filter_indices]
+    detected_scores = scores[filter_indices]
+    return num_out, detected_classes, detected_boxes, detected_scores
+
 
 class Recorder():
     def __init__(self, weights, tiny, buffer_length=150):
@@ -83,7 +116,8 @@ class Recorder():
 
         # get the coco class names and the classes we're interested in
         class_names = np.array([c.strip() for c in open('coco.names').readlines()])
-        targets = [0, 16, 17, 18, 19, 20]
+
+        targets = [0, 16, 20]
         startup = True
         c = 0
 
@@ -156,16 +190,8 @@ class Recorder():
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
                     # filter the detections that are people and with confidence level > 0.56
-                    filter_classes = np.nonzero(np.isin(classes[0][:nums[0]], targets))
-                    filter_scores = np.nonzero(scores[0][:nums[0]] > 0.56)
-                    filter_indices = np.intersect1d(filter_classes, filter_scores)
-                    num_out = filter_indices.size
-                    detected_classes = classes[0][:nums[0]][filter_indices]
-                    detected_classes = detected_classes.astype('int')
-                    detected_boxes = boxes[0][:nums[0]][filter_indices]
-                    detected_scores = scores[0][:nums[0]][filter_indices]
-                    classes = classes[0][:nums[0]]
-                    classes = classes.astype('int')  # convert classes to ints
+                    num_out, detected_classes, detected_boxes, detected_scores = filter_detections(nums, classes, scores, boxes, targets)
+                    classes = classes.astype('int')
 
                     if num_out > 0:
                         # start to save frames to video
@@ -179,6 +205,7 @@ class Recorder():
                         self.logger.write(logging.INFO, 'writing to new file: {}'.format(readable))
                         video_name = 'videos_{}_{}.mp4'.format(self.camera_id, readable)  # create new filename
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
+                        original_name = 'original_{}_{}.png'.format(self.camera_id, readable)
 
                         # insert alert into database
                         now = datetime.datetime.now().isoformat()
@@ -198,6 +225,7 @@ class Recorder():
 
                         # draw bounding boxes and create video writer
                         out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
+                        cv2.imwrite(os.path.join('..', 'files', original_name), frame)
                         frame = draw_outputs(frame,
                             (detected_boxes, detected_scores, detected_classes, num_out),
                             class_names
