@@ -5,9 +5,7 @@ WORKDIR /app/recorder
 
 RUN pip install -r requirements.txt
 
-COPY . /app/recorder
-
 RUN ls -la
 
 
-CMD [ "python", "-u", "capture.py", "--weights=weights/yolov3.tf" ]
+CMD [ "python", "-u", "capture.py", "--weights=weights/yolov3.tf", "--config=config_front.json" ]

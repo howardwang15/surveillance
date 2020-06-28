@@ -1,0 +1,3 @@
+recorder/recorder_env
+recorder/*.log
+.git
