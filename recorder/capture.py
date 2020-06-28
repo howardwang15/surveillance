@@ -13,6 +13,7 @@ import sys
 from logger import Logger
 from models import YoloV3Tiny, YoloV3
 from email_service import EmailService
+from image_operator import ImageOperator
 from dotenv import load_dotenv
 from multiprocessing import Process
 
@@ -25,71 +26,18 @@ def get_options():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-w', '--weights', help='path to YOLO weights')
+    parser.add_argument('-c', '--config', help='path to configuration file')
     options = parser.parse_args()
     return options
 
 
-def transform_images(x_train, size=416):
-    """Perform processing on images
-
-    Args:
-        x_train: 
-    """
-    x_train = tf.image.resize(x_train, (size, size))
-    x_train = x_train / 255
-    return x_train
-
-
-def draw_outputs(img, outputs, class_names):
-    boxes, objectness, classes, nums = outputs
-    wh = np.flip(img.shape[0:2])
-    for i in range(nums):
-        x1y1 = tuple((np.array(boxes[i][0:2]) * wh).astype(np.int32))
-        x2y2 = tuple((np.array(boxes[i][2:4]) * wh).astype(np.int32))
-        img = cv2.rectangle(img, x1y1, x2y2, (255, 0, 0), 2)
-        img = cv2.putText(img, '{} {:.4f}'.format(
-            class_names[int(classes[i])], objectness[i]),
-            x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
-    return img
-
-def filter_detections(nums, classes, scores, boxes, targets):
-    classes = classes[0][:nums[0]]
-    scores = scores[0][:nums[0]]
-    boxes = boxes[0][:nums[0]]
-    filter_classes = np.nonzero(np.isin(classes, targets))
-    filter_scores = np.nonzero(scores > 0.56)
-    filter_indices = np.intersect1d(filter_classes, filter_scores)
-
-    num_out = filter_indices.size
-    detected_classes = classes[filter_indices]
-    detected_classes = detected_classes.astype('int')
-    detected_boxes = boxes[filter_indices]
-    detected_scores = scores[filter_indices]
-    classes = classes.astype('int')  # convert classes to ints
-
-    def filter_boxes(class_id, box):
-        if class_id != 0:
-            return True
-        x1y1 = tuple((np.array(box[0:2])))
-        x2y2 = tuple((np.array(box[2:4])))
-        width = abs(x1y1[0]-x2y2[0])
-        height = abs(x1y1[1]-x2y2[1])
-        hw_ratio = height/width
-        return height > 0.12 and hw_ratio > 2.3
-
-    res = np.array(list(map(filter_boxes, detected_classes, detected_boxes))).astype('bool')
-    filter_indices = filter_indices[res]
-    num_out = filter_indices.size
-    detected_classes = classes[filter_indices]
-    detected_boxes = boxes[filter_indices]
-    detected_scores = scores[filter_indices]
-    return num_out, detected_classes, detected_boxes, detected_scores
-
-
 class Recorder():
-    def __init__(self, weights, tiny, buffer_length=150):
-        self.link = os.getenv('CAMERA_URL')
-        self.camera_id = os.getenv('CAMERA_ID')
+    def __init__(self, weights, config_file, tiny, buffer_length=150):
+        with open(config_file) as f:
+            config = json.load(f)
+
+        self.link = config['link']
+        self.camera_id = config['camera_id']
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.buffer_length = buffer_length
         self.video_buffer = [None] * self.buffer_length
@@ -98,12 +46,14 @@ class Recorder():
         self.cap = cv2.VideoCapture(self.link)
         self.logger = Logger(
             name='recorder logger',
-            log_path='capture.log',
+            log_path='./logs/capture.log',
             default_level=logging.DEBUG,
             max_size=1024*1024*3,
             num_files=5
         )
-
+        self.image_operator = ImageOperator(
+            config=config
+        )
 
     def capture(self):
         self.logger.write(logging.INFO, 'Initializing...')
@@ -157,8 +107,6 @@ class Recorder():
 
             # apply filter to get foreground
             fgmask = fgbg.apply(frame_process)
-
-            # find contours...for debugging purposes
             
             if in_record > 0:
                 in_record += 1
@@ -186,12 +134,17 @@ class Recorder():
                     self.logger.write(logging.INFO, 'motion detected')
 
                     # process image and run through model
-                    tf_frame = transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
+                    tf_frame = self.image_operator.transform_images(tf.expand_dims(cv2.cvtColor(frame_process, cv2.COLOR_BGR2RGB), 0))
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
                     # filter the detections that are people and with confidence level > 0.56
-                    num_out, detected_classes, detected_boxes, detected_scores = filter_detections(nums, classes, scores, boxes, targets)
-                    classes = classes.astype('int')
+                    num_out, classes, detected_classes, detected_boxes, detected_scores = self.image_operator.filter_detections(
+                        nums,
+                        classes,
+                        scores,
+                        boxes,
+                        targets
+                    )
 
                     if num_out > 0:
                         # start to save frames to video
@@ -226,7 +179,7 @@ class Recorder():
                         # draw bounding boxes and create video writer
                         out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
                         cv2.imwrite(os.path.join('..', 'files', original_name), frame)
-                        frame = draw_outputs(frame,
+                        frame = self.image_operator.draw_outputs(frame,
                             (detected_boxes, detected_scores, detected_classes, num_out),
                             class_names
                         )
@@ -247,5 +200,5 @@ class Recorder():
 if __name__ == '__main__':
     load_dotenv()
     options = get_options()
-    recorder = Recorder(weights=options.weights, tiny=False)
+    recorder = Recorder(weights=options.weights, config_file=options.config, tiny=False)
     recorder.capture()
