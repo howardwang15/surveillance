@@ -37,7 +37,6 @@ class Recorder():
             self.config = json.load(f)
 
         self.link = self.config['link']
-        self.link = 0
         self.camera_id = self.config['camera_id']
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.buffer_length = buffer_length
