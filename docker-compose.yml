@@ -6,10 +6,12 @@ services:
             - mysql
         restart: always
         volumes: 
-            - ./:/app/
             - ./files:/app/files
         environment:
             - TZ=America/Los_Angeles
+        devices:
+            - /dev/video0:/dev/video0
+        env_file: .env
     server:
         build: ./server
         depends_on: 

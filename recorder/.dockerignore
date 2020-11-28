@@ -1,0 +1,3 @@
+recorder_env/*
+logs/*
+test_*.py

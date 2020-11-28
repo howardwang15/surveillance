@@ -34,10 +34,11 @@ def get_options():
 class Recorder():
     def __init__(self, weights, config_file, tiny, buffer_length=150):
         with open(config_file) as f:
-            config = json.load(f)
+            self.config = json.load(f)
 
-        self.link = config['link']
-        self.camera_id = config['camera_id']
+        self.link = self.config['link']
+        self.link = 0
+        self.camera_id = self.config['camera_id']
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.buffer_length = buffer_length
         self.video_buffer = [None] * self.buffer_length
@@ -52,11 +53,13 @@ class Recorder():
             num_files=5
         )
         self.image_operator = ImageOperator(
-            config=config
+            config=self.config,
+            logger=self.logger
         )
 
     def capture(self):
         self.logger.write(logging.INFO, 'Initializing...')
+        self.logger.write(logging.INFO, self.config)
         fgbg = cv2.createBackgroundSubtractorMOG2()
         frame_pos = 0
         in_record = 0
@@ -120,6 +123,7 @@ class Recorder():
                         ', '.join(json.loads(os.getenv('EMAIL_DEST'))),
                         base64.b64decode(os.getenv('EMAIL_PASS')).decode()
                     )
+
                     Process(
                         target=self.email_service.send_email,
                         args=(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)

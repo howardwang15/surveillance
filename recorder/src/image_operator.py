@@ -1,10 +1,12 @@
 import tensorflow as tf
 import numpy as np
+import logging
 import cv2
 
 class ImageOperator():
-    def __init__(self, config):
+    def __init__(self, config, logger):
         self.config = config
+        self.logger = logger
 
     def transform_images(self, x_train, size=416):
         """Perform processing on images
@@ -25,7 +27,7 @@ class ImageOperator():
             width = abs(x1y1[0]-x2y2[0])/wh
             height = abs(x1y1[1]-x2y2[1])/wh
             hw_ratio = height/width
-            self.logger.write('Detected object with height {} and hw ratio {}'.format(height, hw_ratio))
+            self.logger.write(logging.INFO, 'Detected object with height {} and hw ratio {}'.format(height, hw_ratio))
             img = cv2.rectangle(img, x1y1, x2y2, (255, 0, 0), 2)
             img = cv2.putText(img, '{} {:.4f}'.format(
                 class_names[int(classes[i])], objectness[i]),
@@ -36,6 +38,7 @@ class ImageOperator():
         classes = classes[0][:nums[0]]
         scores = scores[0][:nums[0]]
         boxes = boxes[0][:nums[0]]
+        self.logger.write(logging.INFO, 'test classes: {}'.format(classes))
         filter_classes = np.nonzero(np.isin(classes, targets))
         filter_scores = np.nonzero(scores > 0.56)
         filter_indices = np.intersect1d(filter_classes, filter_scores)
@@ -55,7 +58,7 @@ class ImageOperator():
             width = abs(x1y1[0]-x2y2[0])
             height = abs(x1y1[1]-x2y2[1])
             hw_ratio = height/width
-            return height > self.config['min_detection_height'] and self.config['min_hw_ratio'] > 2.3
+            return height > self.config['min_detection_height'] and hw_ratio > self.config['min_hw_ratio']
 
         res = np.array(list(map(filter_boxes, detected_classes, detected_boxes))).astype('bool')
         filter_indices = filter_indices[res]
@@ -63,4 +66,5 @@ class ImageOperator():
         detected_classes = classes[filter_indices]
         detected_boxes = boxes[filter_indices]
         detected_scores = scores[filter_indices]
+        print(num_out)
         return num_out, classes, detected_classes, detected_boxes, detected_scores

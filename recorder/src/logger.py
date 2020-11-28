@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from logging.handlers import RotatingFileHandler
 
 class Logger:
@@ -8,6 +9,7 @@ class Logger:
         self.logger.setLevel(default_level)
         formatter = logging.Formatter('%(asctime)s %(message)s')
 
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
         file_handler = RotatingFileHandler(log_path, maxBytes=max_size, backupCount=num_files)
         file_handler.setFormatter(formatter)
         self.logger.addHandler(file_handler)
