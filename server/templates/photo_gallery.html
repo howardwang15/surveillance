@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
+
+    <title>Surveillance Dashboard</title>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <form action="{{ url_for('fetch_videos') }}" method="GET">
+                <div class='col-sm-4'>
+                    <h2>Select a date and time</h2>
+                    <div class='input-group date mt-5'>
+                        <input type='text' class="form-control" id='picker' placeholder='Choose a time' name='datetime' />
+                        <span class="input-group-addon">
+                            <span class="glyphicon glyphicon-calendar"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class='col-sm-4 col-sm-offset-4'>
+                    <div class="d-flex flex-column">
+                        <h2>Filter by object detected</h2>
+                        <div class='p-2'>
+                            <input type="checkbox" class="form-check-input" id="person" name='person' >
+                            <label class="form-check-label" for="person">Person</label>
+                        </div>
+
+                        <div class='p-2'>
+                            <input type="checkbox" class="form-check-input" id="animal" name='animal'>
+                            <label class="form-check-label" for="animal">Animal</label>
+                        </div>
+                    </div>
+                </div>
+                <input type='submit' class='btn btn-secondary col-sm-2 col-sm-offset-5' value='Find footage'>
+            </form>
+        </div>
+    </div>
+
+    <br />
+
+    {% if not data %}
+        <h2 class="text-center">No footage found!</h2>
+    {% else %}
+        <div class="container">
+            {% for time, image, video in data %}
+                <div class="col-sm-6 d-flex flex-column">
+                    <h3 class="p-2 text-center">
+                        {{video}}
+                    </h3>
+                    <div class="p-2">
+                        <img src="/static/files/images_front_door_2020-03-29T18:13:03.068396.png" width="400px" />
+                        <!-- <img src="{{image}}" width="400px"/> -->
+                    </div>
+                    <div class="p-2">
+                        <video width="320" height="320" controls>
+                            <source src="/static/files/colorado.mp4" type="video/mp4">
+
+                            <!-- <source src="{{ url_for('static', filename='files/videos_front_door_2020-03-29T18:57:53.678792.mp4') }}" type="video/mp4; codecs='avc1.42E01E', mp4a.40.2"> -->
+                        </video>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+
+    <script type="text/javascript">
+        $(function () {
+            $('#picker').datetimepicker();
+        });
+
+        function submitQuery() {
+            text = document.getElementById('picker').value;
+            console.log(text);
+        }
+    </script>
+
+</body>
+</html>
