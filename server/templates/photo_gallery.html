@@ -4,15 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
-
     <title>Surveillance Dashboard</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+    </style>
 </head>
 <body>
     <div class="container-fluid">
         <div class="row justify-content-around">
             {{range $val := .}}
             <div class="col-sm-3" align="center">
-                <img src="{{$val}}" width="300px"/>
+                <img src="{{$val.ImageFile}}" width="350px"/>
+                <p>{{$val.Time}}</p>
             </div>
             {{end}}
         </div>
