@@ -14,7 +14,7 @@
 <body>
     <div class="container-fluid">
         <div class="row justify-content-around">
-            {{range $val := .}}
+            {{range $val := .Videos}}
             <div class="col-sm-3" align="center">
                 <img src="{{$val.ImageFile}}" width="350px"/>
                 <p>{{$val.Time}}</p>
@@ -24,6 +24,22 @@
     </div>
     
     <br />
+    <div class="container-fluid">
+        <div class="row">
+           <div class="col-sm-3">
+                <div class="d-flex flex-row">
+                    {{if ne .Page 1}}
+                    <a class="btn btn-secondary p-2" href="http://localhost:8080/?page={{sub .Page 1}}">Previous</a>
+                    {{end}}
 
+                    <p class="p-2">Page {{.Page}} of {{.NumPages}}</p>
+
+                    {{if ne .Page .NumPages}}
+                    <a class="btn btn-secondary p-2" href="http://localhost:8080/?page={{add .Page 1}}">Next</a>
+                    {{end}}
+                </div>
+           </div>
+        </div>
+    </div>
 </body>
 </html>
