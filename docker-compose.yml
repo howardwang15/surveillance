@@ -1,6 +1,7 @@
 version: '3.2'
 services: 
     recorder:
+        image: surveillance_recorder:0.0.2
         build: ./recorder
         depends_on:
             - mysql
@@ -13,6 +14,7 @@ services:
             - /dev/video0:/dev/video0
         env_file: .env
     server:
+        image: surveillance_server:0.0.2
         build: ./server
         depends_on: 
             - mysql

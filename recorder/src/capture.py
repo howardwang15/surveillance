@@ -61,7 +61,7 @@ class Recorder():
         self.logger.write(logging.INFO, self.config)
         fgbg = cv2.createBackgroundSubtractorMOG2()
         frame_pos = 0
-        in_record = 0
+        num_recorded_frames = 0
         video_name = ''
         if not os.path.exists(os.path.join('..', 'files')):
             os.makedirs(os.path.join('..', 'files'))
@@ -73,6 +73,7 @@ class Recorder():
         startup = True
         c = 0
 
+        # recording loop
         while True:
             if not self.cap.isOpened():
                 self.cap = cv2.VideoCapture(self.link)
@@ -84,14 +85,14 @@ class Recorder():
 
             if not ret:
                 self.logger.write(logging.ERROR, 'Couldn\'t get frame')
-                self.logger.write(logging.INFO, 'cap is opened: {}'.format(self.cap.isOpened()))
+                self.logger.write(logging.INFO, 'Is cap opened?: {}'.format(self.cap.isOpened()))
                 self.cap.release()
                 self.cap = cv2.VideoCapture(self.link)
                 continue
 
             c += 1
-            if c % 1000 == 0:
-                self.logger.write(logging.DEBUG, c)
+            if c % 10000 == 0:
+                self.logger.write(logging.DEBUG, 'Processed {} frames since start'.format(c))
 
 
             # resize, store into buffer
@@ -110,22 +111,27 @@ class Recorder():
             # apply filter to get foreground
             fgmask = fgbg.apply(frame_process)
             
-            if in_record > 0:
-                in_record += 1
+            if num_recorded_frames > 0:
+                num_recorded_frames += 1
         
                 # finish writing to file
-                if in_record >= self.buffer_length:
-                    in_record = 0
+                if num_recorded_frames >= self.buffer_length:
+                    num_recorded_frames = 0
                     out.release()
                     self.email_service = EmailService(
-                        os.getenv('EMAIL_SOURCE'),
-                        ', '.join(json.loads(os.getenv('EMAIL_DEST'))),
-                        base64.b64decode(os.getenv('EMAIL_PASS')).decode()
+                        source=os.getenv('EMAIL_SOURCE'),
+                        dest=', '.join(json.loads(os.getenv('EMAIL_DEST'))),
+                        password=base64.b64decode(os.getenv('EMAIL_PASS')).decode()
                     )
 
                     Process(
                         target=self.email_service.send_email,
-                        args=(os.path.join('..', 'files', frame_name), os.path.join('..', 'files', video_name), now)
+                        args=(
+                            os.path.join('..', 'files', frame_name),
+                            os.path.join('..', 'files', video_name),
+                            detected_class_names,
+                            now
+                        )
                     ).start()
 
             cnt = np.count_nonzero(fgmask)
@@ -133,7 +139,7 @@ class Recorder():
             # threshold...filters out images with too much noise
             if cnt * 25 > h_process * w_process:
                 # see if person (class 0) is in predictions
-                if in_record == 0:
+                if num_recorded_frames == 0:
                     self.logger.write(logging.INFO, 'motion detected')
 
                     # process image and run through model
@@ -141,7 +147,7 @@ class Recorder():
                     boxes, scores, classes, nums = self.yolo_model.predict(tf_frame)
 
                     # filter the detections that are people and with confidence level > 0.56
-                    num_out, classes, detected_classes, detected_boxes, detected_scores = self.image_operator.filter_detections(
+                    num_detected, classes, detected_classes, detected_boxes, detected_scores = self.image_operator.filter_detections(
                         nums,
                         classes,
                         scores,
@@ -149,10 +155,10 @@ class Recorder():
                         targets
                     )
 
-                    if num_out > 0:
+                    if num_detected > 0:
                         # start to save frames to video
                         self.logger.write(logging.INFO, 'Detected objects of interest: {}'.format(class_names[detected_classes]))
-                        in_record = 1
+                        num_recorded_frames = 1
                         start_pos = frame_pos - 30
                         ts = datetime.datetime.now().timestamp()
 
@@ -173,8 +179,8 @@ class Recorder():
                         video_id = self.cursor.lastrowid
 
                         # add detected objects to database
-                        for _class in detected_classes:
-                            class_name = class_names[int(_class)]
+                        detected_class_names = [class_names[int(_class)] for _class in detected_classes]
+                        for class_name in detected_class_names:
                             insert_object_query = "INSERT INTO detections (video_id, type) values ('{}', '{}')".format(video_id, class_name)
                             self.cursor.execute(insert_object_query)
                             self.cnx.commit()
@@ -183,7 +189,7 @@ class Recorder():
                         out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))
                         cv2.imwrite(os.path.join('..', 'files', original_name), frame)
                         frame = self.image_operator.draw_outputs(frame,
-                            (detected_boxes, detected_scores, detected_classes, num_out),
+                            (detected_boxes, detected_scores, detected_classes, num_detected),
                             class_names
                         )
 
@@ -192,7 +198,7 @@ class Recorder():
                     else:
                         self.logger.write(logging.INFO, 'found objects not interested in: {}'.format(class_names[classes]))
 
-            if in_record > 0:
+            if num_recorded_frames > 0:
                 out.write(self.video_buffer[frame_pos - 30])  # write frame
                 
         self.cap.release()

@@ -38,7 +38,6 @@ class ImageOperator():
         classes = classes[0][:nums[0]]
         scores = scores[0][:nums[0]]
         boxes = boxes[0][:nums[0]]
-        self.logger.write(logging.INFO, 'test classes: {}'.format(classes))
         filter_classes = np.nonzero(np.isin(classes, targets))
         filter_scores = np.nonzero(scores > 0.56)
         filter_indices = np.intersect1d(filter_classes, filter_scores)
@@ -66,5 +65,4 @@ class ImageOperator():
         detected_classes = classes[filter_indices]
         detected_boxes = boxes[filter_indices]
         detected_scores = scores[filter_indices]
-        print(num_out)
         return num_out, classes, detected_classes, detected_boxes, detected_scores

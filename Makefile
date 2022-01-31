@@ -8,6 +8,9 @@ build:
 run: build
 	docker-compose up -d
 
+dev: build
+	docker-compose up
+
 stop:
 	docker-compose down
 
@@ -21,12 +24,12 @@ prune:
 	docker image prune
 
 mysql:
-	docker exec -it $$(sudo docker ps | grep "mysql" | cut -d' ' -f1) mysql -uroot -p
+	docker exec -it $$(docker ps | grep "mysql" | cut -d' ' -f1) mysql -uroot -p
 
 restart: stop run
 
 recorder:
-	docker exec -it $$(sudo docker ps | grep "recorder" | cut -d' ' -f1) bash
+	docker exec -it $$(docker ps | grep "recorder" | cut -d' ' -f1) bash
 
 server:
-	docker exec -it $$(sudo docker ps | grep "server" | cut -d' ' -f1) bash
+	docker exec -it $$(docker ps | grep "server" | cut -d' ' -f1) bash
