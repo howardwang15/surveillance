@@ -18,13 +18,13 @@ class EmailService():
         self.smtp_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         self.smtp_server.ehlo()
     
-    def send_email(self, image_path, video_path, detected, timestamp):
+    def send_email(self, image_path, video_path, camera_name, detected, timestamp):
         timestamp = dateutil.parser.parse(timestamp)
         timestamp = timestamp.strftime('%B %d %Y, %I:%M:%S %p')
         
         msg = MIMEMultipart()
         detected_classes = ', '.join(detected)
-        msg['Subject'] = 'Motion detected at {}: {}'.format(timestamp, detected_classes)
+        msg['Subject'] = '{} - Motion detected at {}: {}'.format(camera_name, timestamp, detected_classes)
         msg['From'] = self.source
         msg['To'] = self.dest
 
