@@ -18,19 +18,6 @@ from dotenv import load_dotenv
 from multiprocessing import Process
 
 
-def get_options():
-    """Add and parse command line arguments
-
-    Returns:
-        argparse.Namespace: options parsed while running program
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-w', '--weights', help='path to YOLO weights')
-    parser.add_argument('-c', '--config', help='path to configuration file')
-    options = parser.parse_args()
-    return options
-
-
 class Recorder():
     def __init__(self, weights, config_file, tiny, buffer_length=150):
         with open(config_file) as f:
@@ -38,6 +25,7 @@ class Recorder():
 
         self.link = self.config['link']
         self.camera_id = self.config['camera_id']
+        self.camera_name = self.config['camera_name']
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.buffer_length = buffer_length
         self.video_buffer = [None] * self.buffer_length
@@ -91,7 +79,7 @@ class Recorder():
                 continue
 
             c += 1
-            if c % 10000 == 0:
+            if c % 50000 == 0:
                 self.logger.write(logging.DEBUG, 'Processed {} frames since start'.format(c))
 
 
@@ -129,6 +117,7 @@ class Recorder():
                         args=(
                             os.path.join('..', 'files', frame_name),
                             os.path.join('..', 'files', video_name),
+                            self.camera_name,
                             detected_class_names,
                             now
                         )
@@ -171,7 +160,7 @@ class Recorder():
 
                         # insert alert into database
                         now = datetime.datetime.now().isoformat()
-                        insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame) values ('{}', '{}', '{}')".format(now, video_name, frame_name)
+                        insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame, camera_id) values ('{}', '{}', '{}', '{}')".format(now, video_name, frame_name, self.camera_id)
                         self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
                         self.cursor = self.cnx.cursor()
                         self.cursor.execute(insert_video_query)
@@ -208,6 +197,5 @@ class Recorder():
 
 if __name__ == '__main__':
     load_dotenv()
-    options = get_options()
-    recorder = Recorder(weights=options.weights, config_file=options.config, tiny=False)
+    recorder = Recorder(weights=os.getenv('WEIGHTS_FILE'), config_file=os.getenv('CONFIG_FILE'), tiny=False)
     recorder.capture()

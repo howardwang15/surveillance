@@ -1,6 +1,6 @@
 version: '3.2'
 services: 
-    recorder:
+    recorder_front:
         image: surveillance_recorder:0.0.2
         build: ./recorder
         depends_on:
@@ -10,9 +10,28 @@ services:
             - ./files:/app/files
         environment:
             - TZ=America/Los_Angeles
+            - CONFIG_FILE=config_front.json
+            - WEIGHTS_FILE=weights/yolov3.tf
         devices:
             - /dev/video0:/dev/video0
         env_file: .env
+
+    recorder_back:
+        image: surveillance_recorder:0.0.2
+        build: ./recorder
+        depends_on:
+            - mysql
+        restart: always
+        volumes:
+            - ./files:/app/files
+        environment:
+            - TZ=America/Los_Angeles
+            - CONFIG_FILE=config_back.json
+            - WEIGHTS_FILE=weights/yolov3.tf
+        devices:
+            - /dev/video0:/dev/video0
+        env_file: .env
+
     server:
         image: surveillance_server:0.0.2
         build: ./server
@@ -39,6 +58,8 @@ services:
             - '3306'
         volumes:
             - ./mysql_data:/var/lib/mysql
+        cap_add:
+            - SYS_NICE
 
 volumes:
     files:
