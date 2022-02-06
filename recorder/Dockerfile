@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.8.12-slim
 
 COPY requirements.txt /app/recorder/
 WORKDIR /app/recorder/
@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt
 
 COPY src/ ./
 
-CMD [ "python", "-u", "capture.py", "--weights=weights/yolov3.tf", "--config=config_front.json" ]
+CMD [ "python", "-u", "capture.py" ]
