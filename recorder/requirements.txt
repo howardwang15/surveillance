@@ -1,5 +1,5 @@
-opencv-python
-tensorflow
-python-dotenv
-mysql-connector-python
-python-dateutil
+opencv-python==4.5.5.62
+tensorflow==2.6.2
+python-dotenv==0.19.2
+mysql-connector-python==8.0.28
+python-dateutil==2.8.2

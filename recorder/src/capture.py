@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from multiprocessing import Process
 
 
-class Recorder():
+class Recorder:
     def __init__(self, weights, config_file, tiny, buffer_length=150):
         with open(config_file) as f:
             self.config = json.load(f)
@@ -57,7 +57,8 @@ class Recorder():
         # get the coco class names and the classes we're interested in
         class_names = np.array([c.strip() for c in open('coco.names').readlines()])
 
-        targets = [0, 16, 20]
+        # person, cat, dog
+        targets = [0, 15, 16]
         startup = True
         c = 0
 
@@ -158,21 +159,23 @@ class Recorder():
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
                         original_name = 'original_{}_{}.png'.format(self.camera_id, readable)
 
+                        detected_class_names = [class_names[int(_class)] for _class in detected_classes]
+
                         # insert alert into database
                         now = datetime.datetime.now().isoformat()
-                        insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame, camera_id) values ('{}', '{}', '{}', '{}')".format(now, video_name, frame_name, self.camera_id)
-                        self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
-                        self.cursor = self.cnx.cursor()
-                        self.cursor.execute(insert_video_query)
-                        self.cnx.commit()
-                        video_id = self.cursor.lastrowid
-
-                        # add detected objects to database
-                        detected_class_names = [class_names[int(_class)] for _class in detected_classes]
-                        for class_name in detected_class_names:
-                            insert_object_query = "INSERT INTO detections (video_id, type) values ('{}', '{}')".format(video_id, class_name)
-                            self.cursor.execute(insert_object_query)
+                        if os.getenv('APP_ENV') == 'production':
+                            insert_video_query = "INSERT INTO videos (start_time, video_name, first_frame, camera_id) values ('{}', '{}', '{}', '{}')".format(now, video_name, frame_name, self.camera_id)
+                            self.cnx = mysql.connector.connect(user=os.getenv('MYSQL_USER'), password=os.getenv('MYSQL_ROOT_PASSWORD'), host='mysql', database='surveillance')
+                            self.cursor = self.cnx.cursor()
+                            self.cursor.execute(insert_video_query)
                             self.cnx.commit()
+                            video_id = self.cursor.lastrowid
+
+                            # add detected objects to database
+                            for class_name in detected_class_names:
+                                insert_object_query = "INSERT INTO detections (video_id, type) values ('{}', '{}')".format(video_id, class_name)
+                                self.cursor.execute(insert_object_query)
+                                self.cnx.commit()
 
                         # draw bounding boxes and create video writer
                         out = cv2.VideoWriter(os.path.join('..', 'files', video_name), self.fourcc, 15.0, (w_full, h_full))

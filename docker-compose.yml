@@ -1,5 +1,5 @@
 version: '3.2'
-services: 
+services:
     recorder_front:
         image: surveillance_recorder:0.0.2
         build: ./recorder
@@ -8,10 +8,12 @@ services:
         restart: always
         volumes: 
             - ./files:/app/files
+            - ./recorder/logs:/app/recorder/logs
         environment:
             - TZ=America/Los_Angeles
             - CONFIG_FILE=config_front.json
             - WEIGHTS_FILE=weights/yolov3.tf
+            - APP_ENV=production
         devices:
             - /dev/video0:/dev/video0
         env_file: .env
@@ -24,10 +26,12 @@ services:
         restart: always
         volumes:
             - ./files:/app/files
+            - ./recorder/logs:/app/recorder/logs
         environment:
             - TZ=America/Los_Angeles
             - CONFIG_FILE=config_back.json
             - WEIGHTS_FILE=weights/yolov3.tf
+            - APP_ENV=production
         devices:
             - /dev/video0:/dev/video0
         env_file: .env

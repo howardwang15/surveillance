@@ -1,53 +1,59 @@
+# Home surveillance system
 
+## Features
 
-# Features
+- Connect to RSTP camera to record video
+- Detects people, cats, dogs within video (using YOLO model), then sends email notification with captured frame and video
+- Web server for accessing recordings
 
-- Connect to camera/record video
-- Analyze video content/motion...detect object (people/animals)
-- Handle recording crashes
-- DB - store recorded clip of motion, start/end timestamps...retrieve
-- Server to handle requests/queries
-- Remove videos older than 1 month
-- Email system - send email on first frame of motion detected...send video clip
-- Webpage: playback video, controls, timeline
+## Services
 
+- recording service: captures video and runs object detection algorithm
+- HTTP server: sends email notifications and renders web algorithm
+- MySQL database: persists detections and image/video file locations with timestamps
 
-## Video storage and Retrieval
+Uses docker-compose to run all services 
 
-### GCP Storage
+## Configuration
+To set-up the recording service, create JSON files like the following:
+```JSON
+{
+    "link": "RTSP camera link w/ IP address",
+    "camera_id": "Camera ID",
+    "camera_name": "Camera name for camera",
+    "min_detection_height": "minimum height of detected object for filtering (float between 0 and 1)",
+    "min_hw_ratio": "minimum height to width ratio of detected object for filtering (float)"
+}
+```
 
-- up to 5 GB per month
-- store mp4 files
+### Environment Variables
+- `CONFIG_FILE`: path to JSON config file relative to the capture script
+- `WEIGHTS_FILE`: path to YOLO weights file relative to the capture script
+- `EMAIL_SOURCE`: email address to send email from
+- `EMAIL_DEST`: Python list of email addresses to send notification email to
+- `EMAIL_PASS`: base64 encoded password to `EMAIL_SOURCE` email address
+- `MYSQL_USER`: username to access MySQL database (set to `root`)
+- `MYSQL_ROOT_PASSWORD`: root password to MySQL database
 
-### MySQL DB
+Recommendation is to use `.env` file to store environment variables.
 
-**Schema**
+## Development
 
-- uuid
-- start time (datetime)
-- end time (datetime)
-- file name (varchar)
-- contains person (boolean)
+### Recording service
 
+1. Create a virtual environment and activate
+2. Run `pip install -r requirements.txt` under `recorder/`
+3. Set `APP_ENV` environment variable to `development`. This disables writes into the MySQL database.
+4. Run `python -u capture.py` in the `recorder/src` directory.
 
-### Client
+### Web server
+1. Run `go get` under `server/`
+2. Start the web server by running `go run app.go`
 
-- fetch videos from GCP and cache
-- add controls to playback/seek videos
-- send request to server for videos of interest
+## Deployment
 
-### Server
+Deploying service just starts the production-esque services on the local machine.
 
-All timestamps are in Linux format (seconds since Epoch)
-
-- GET `videos/`
-  - Retrieve all videos
-- GET `videos/?timestamp`
-  - Retrieve all videos before `timestamp`
-- GET `videos/?timestamp1-timestamp2`
-  - Retrieve all videos between `timestamp1` and `timestamp2`
-
-### Others
-
-- Create job that automatically deletes videos older than 1 month (perhaps MySQL job)
-
+1. Run `make run`
+2. To stop production services, run `docker-compose down` in the root directory of the repo
+3. For first time setup, run `make mysql` and enter the credentials. Copy the commands in `init.sql` to setup the database and create the tables.

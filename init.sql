@@ -9,6 +9,7 @@ CREATE TABLE videos (
     start_time datetime NOT NULL,
     video_name text NOT NULL,
     first_frame text NOT NULL,
+    camera_id text NOT NULL,
     PRIMARY KEY (id)
 );
 
