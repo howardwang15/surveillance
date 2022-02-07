@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from multiprocessing import Process
 
 
-class Recorder():
+class Recorder:
     def __init__(self, weights, config_file, tiny, buffer_length=150):
         with open(config_file) as f:
             self.config = json.load(f)
@@ -159,6 +159,8 @@ class Recorder():
                         frame_name = 'images_{}_{}.png'.format(self.camera_id, readable)
                         original_name = 'original_{}_{}.png'.format(self.camera_id, readable)
 
+                        detected_class_names = [class_names[int(_class)] for _class in detected_classes]
+
                         # insert alert into database
                         now = datetime.datetime.now().isoformat()
                         if os.getenv('APP_ENV') == 'production':
@@ -170,7 +172,6 @@ class Recorder():
                             video_id = self.cursor.lastrowid
 
                             # add detected objects to database
-                            detected_class_names = [class_names[int(_class)] for _class in detected_classes]
                             for class_name in detected_class_names:
                                 insert_object_query = "INSERT INTO detections (video_id, type) values ('{}', '{}')".format(video_id, class_name)
                                 self.cursor.execute(insert_object_query)

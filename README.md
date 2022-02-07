@@ -35,6 +35,7 @@ To set-up the recording service, create JSON files like the following:
 - `MYSQL_USER`: username to access MySQL database (set to `root`)
 - `MYSQL_ROOT_PASSWORD`: root password to MySQL database
 
+Recommendation is to use `.env` file to store environment variables.
 
 ## Development
 
@@ -48,3 +49,11 @@ To set-up the recording service, create JSON files like the following:
 ### Web server
 1. Run `go get` under `server/`
 2. Start the web server by running `go run app.go`
+
+## Deployment
+
+Deploying service just starts the production-esque services on the local machine.
+
+1. Run `make run`
+2. To stop production services, run `docker-compose down` in the root directory of the repo
+3. For first time setup, run `make mysql` and enter the credentials. Copy the commands in `init.sql` to setup the database and create the tables.
